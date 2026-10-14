@@ -1,1 +1,148 @@
 
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meu Mercado — Comando de Voz</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: Arial, sans-serif;
+      background: #f1f5f9;
+      color: #102a43;
+    }
+    main {
+      max-width: 440px;
+      margin: 24px auto;
+      padding: 26px;
+      background: white;
+      border-radius: 18px;
+      box-shadow: 0 6px 24px #102a4318;
+      text-align: center;
+    }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    p { line-height: 1.5; }
+    button {
+      width: 100%;
+      min-height: 54px;
+      margin-top: 14px;
+      border: 0;
+      border-radius: 12px;
+      background: #0b2239;
+      color: white;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .6; cursor: wait; }
+    #status {
+      margin-top: 18px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #f1f5f9;
+      overflow-wrap: anywhere;
+    }
+    #resultado {
+      margin-top: 14px;
+      text-align: left;
+      overflow-wrap: anywhere;
+    }
+    .nota { font-size: 13px; color: #526579; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>🎙️ Meu Mercado</h1>
+    <p>Toque no botão e diga o produto, a quantidade e o preço.</p>
+    <button id="falar" type="button">🎙️ Começar a falar</button>
+    <div id="status" role="status" aria-live="polite">
+      Pronto para testar.
+    </div>
+    <div id="resultado"></div>
+    <p class="nota">Exemplo: “Comprei três caixas de leite, deu vinte e sete reais no total.”</p>
+  </main>
+
+  <script>
+    const botao = document.getElementById('falar');
+    const status = document.getElementById('status');
+    const resultado = document.getElementById('resultado');
+
+    botao.addEventListener('click', function () {
+      const Reconhecimento =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
+
+      if (!Reconhecimento) {
+        status.textContent =
+          'Este navegador não oferece reconhecimento de voz. Tente o Google Chrome atualizado.';
+        return;
+      }
+
+      const reconhecimento = new Reconhecimento();
+      reconhecimento.lang = 'pt-BR';
+      reconhecimento.continuous = false;
+      reconhecimento.interimResults = false;
+      reconhecimento.maxAlternatives = 1;
+
+      botao.disabled = true;
+      status.textContent = '🎙️ Ouvindo... fale agora.';
+      resultado.textContent = '';
+
+      reconhecimento.onresult = function (evento) {
+        const texto =
+          evento.results[0][0].transcript.trim();
+
+        status.textContent = 'Texto reconhecido:';
+        resultado.textContent = texto;
+
+        try {
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage(
+              { tipo: 'MEU_MERCADO_VOZ', texto: texto },
+              '*'
+            );
+            status.textContent =
+              'Texto reconhecido. A integração será confirmada no próximo teste.';
+          } else {
+            status.textContent =
+              'Teste concluído. Abra esta página pelo botão de voz do Meu Mercado para enviar o texto ao aplicativo.';
+          }
+        } catch (erro) {
+          status.textContent =
+            'Texto reconhecido, mas não foi possível enviá-lo ao aplicativo.';
+        }
+      };
+
+      reconhecimento.onerror = function (evento) {
+        const mensagens = {
+          'not-allowed': 'Acesso ao microfone recusado. Confira as permissões do navegador.',
+          'service-not-allowed': 'O serviço de reconhecimento de voz não foi permitido.',
+          'no-speech': 'Nenhuma fala detectada. Tente novamente.',
+          'network': 'Falha de rede no reconhecimento de voz.',
+          'audio-capture': 'Nenhum microfone disponível.'
+        };
+
+        status.textContent =
+          mensagens[evento.error] ||
+          ('Erro no reconhecimento: ' + evento.error);
+      };
+
+      reconhecimento.onend = function () {
+        botao.disabled = false;
+      };
+
+      try {
+        reconhecimento.start();
+      } catch (erro) {
+        botao.disabled = false;
+        status.textContent =
+          'Não foi possível iniciar. Tente novamente.';
+      }
+    });
+  </script>
+</body>
+</html>
+
